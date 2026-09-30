@@ -54,7 +54,7 @@ if "mode" not in st.session_state:
     st.session_state.mode = "student"
 
 # ==============================================================================
-# PHẦN 1: TRANG TRANG QUẢN TRỊ GIÁO VIÊN (ADMIN & CẤU HÌNH)
+# PHẦN 1: TRANG QUẢN TRỊ GIÁO VIÊN (ADMIN, CẤU HÌNH & XÓA DỮ LIỆU)
 # ==============================================================================
 if st.session_state.mode == "admin":
     st.title("⚙️ TRANG QUẢN TRỊ VÀ CẤU HÌNH HỆ THỐNG THI")
@@ -120,14 +120,32 @@ if st.session_state.mode == "admin":
                 f.write(uploaded_bank.getbuffer())
             st.success("Tải lên file đề thi mới thành công!")
 
-    # --- TAB 2: BẢNG ĐIỂM TỔNG HỢP ---
+    # --- TAB 2: BẢNG ĐIỂM TỔNG HỢP & NÚT XÓA DỮ LIỆU ---
     with tab2:
         st.subheader("Bảng điểm tổng hợp tất cả thí sinh")
+
+        # NÚT XÓA / LÀM MỚI DỮ LIỆU BÀI THI
+        col_dl1, col_dl2 = st.columns([6, 3])
+        with col_dl2:
+            if st.button("🗑️ XÓA TOÀN BỘ BẢNG ĐIỂM & BÀI LÀM", type="primary", use_container_width=True):
+                # 1. Xóa file bảng điểm csv
+                if os.path.exists(RESULT_FILE):
+                    os.remove(RESULT_FILE)
+                # 2. Xóa toàn bộ file bài làm chi tiết trong thư mục
+                if os.path.exists(DETAILED_DIR):
+                    for f in os.listdir(DETAILED_DIR):
+                        file_p = os.path.join(DETAILED_DIR, f)
+                        if os.path.isfile(file_p):
+                            os.remove(file_p)
+                st.success("Đã xóa sạch toàn bộ bảng điểm và bài làm chi tiết thành công!")
+                time.sleep(1)
+                st.rerun()
+
         if os.path.exists(RESULT_FILE):
             df_res = pd.read_csv(RESULT_FILE)
             st.dataframe(df_res, use_container_width=True)
             csv_data = df_res.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
-            st.download_button("📥 Tải Bảng Điểm Tổng Hợp (CSV)", data=csv_data, file_name="Bang_Diem_Tong_Hop.csv", mime="text/csv", type="primary")
+            st.download_button("📥 Tải Bảng Điểm Tổng Hợp (CSV)", data=csv_data, file_name="Bang_Diem_Tong_Hop.csv", mime="text/csv")
         else:
             st.info("Chưa có lượt nộp bài nào.")
 
