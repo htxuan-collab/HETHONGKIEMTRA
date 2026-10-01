@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-import uuid
 import random
 import time
 from datetime import datetime
@@ -16,7 +15,6 @@ DETAILED_DIR = "bai_thi_chi_tiet"
 if not os.path.exists(DETAILED_DIR):
     os.makedirs(DETAILED_DIR)
 
-# Các giá trị cấu hình mặc định
 DEFAULT_CONFIG = {
     "school": "SỞ GIÁO DỤC VÀ ĐÀO TẠO",
     "title": "KỲ THI KIỂM TRA THƯỜNG XUYÊN 2026",
@@ -54,7 +52,7 @@ if "mode" not in st.session_state:
     st.session_state.mode = "student"
 
 # ==============================================================================
-# PHẦN 1: TRANG QUẢN TRỊ GIÁO VIÊN (ADMIN, CẤU HÌNH & XÓA DỮ LIỆU)
+# PHẦN 1: TRANG QUẢN TRỊ GIÁO VIÊN (ADMIN)
 # ==============================================================================
 if st.session_state.mode == "admin":
     st.title("⚙️ TRANG QUẢN TRỊ VÀ CẤU HÌNH HỆ THỐNG THI")
@@ -81,9 +79,8 @@ if st.session_state.mode == "admin":
             st.session_state.mode = "student"
             st.rerun()
 
-    tab1, tab2, tab3 = st.tabs(["🛠️ Cấu hình đề thi & Thời gian", "📋 Bảng điểm tổng hợp", "📝 Bài làm chi tiết"])
+    tab1, tab2, tab3 = st.tabs(["🛠️ Cấu hình đề thi", "📋 Bảng điểm tổng hợp", "📝 Bài làm chi tiết"])
 
-    # --- TAB 1: CẤU HÌNH HỆ THỐNG ---
     with tab1:
         st.subheader("1. Cấu hình thông tin kỳ thi & Số lượng câu hỏi")
         with st.form("config_form"):
@@ -100,7 +97,7 @@ if st.session_state.mode == "admin":
                 p2_c = st.number_input("Số câu PHẦN II (Đúng / Sai):", min_value=0, max_value=20, value=int(config.get("part2_count")))
                 p3_c = st.number_input("Số câu PHẦN III (Trả lời ngắn):", min_value=0, max_value=20, value=int(config.get("part3_count")))
 
-            save_btn = st.form_submit_button("💾 Lưu Cấu Hình Lại", type="primary")
+            save_btn = st.form_submit_button("💾 Lưu Cấu Hình", type="primary")
             if save_btn:
                 config.update({
                     "school": school, "title": title, "subject": subject,
@@ -108,7 +105,7 @@ if st.session_state.mode == "admin":
                     "part3_count": p3_c, "admin_password": admin_password
                 })
                 save_json(CONFIG_FILE, config)
-                st.success("Đã lưu cấu hình mới thành công!")
+                st.success("Đã lưu cấu hình thành công!")
                 st.rerun()
 
         st.divider()
@@ -118,26 +115,19 @@ if st.session_state.mode == "admin":
             bank_path = config.get("bank", "questions.xlsx")
             with open(bank_path, "wb") as f:
                 f.write(uploaded_bank.getbuffer())
-            st.success("Tải lên file đề thi mới thành công!")
+            st.success("Tải file câu hỏi thành công!")
 
-    # --- TAB 2: BẢNG ĐIỂM TỔNG HỢP & NÚT XÓA DỮ LIỆU ---
     with tab2:
         st.subheader("Bảng điểm tổng hợp tất cả thí sinh")
-
-        # NÚT XÓA / LÀM MỚI DỮ LIỆU BÀI THI
         col_dl1, col_dl2 = st.columns([6, 3])
         with col_dl2:
             if st.button("🗑️ XÓA TOÀN BỘ BẢNG ĐIỂM & BÀI LÀM", type="primary", use_container_width=True):
-                # 1. Xóa file bảng điểm csv
-                if os.path.exists(RESULT_FILE):
-                    os.remove(RESULT_FILE)
-                # 2. Xóa toàn bộ file bài làm chi tiết trong thư mục
+                if os.path.exists(RESULT_FILE): os.remove(RESULT_FILE)
                 if os.path.exists(DETAILED_DIR):
                     for f in os.listdir(DETAILED_DIR):
-                        file_p = os.path.join(DETAILED_DIR, f)
-                        if os.path.isfile(file_p):
-                            os.remove(file_p)
-                st.success("Đã xóa sạch toàn bộ bảng điểm và bài làm chi tiết thành công!")
+                        fp = os.path.join(DETAILED_DIR, f)
+                        if os.path.isfile(fp): os.remove(fp)
+                st.success("Đã làm mới dữ liệu thành công!")
                 time.sleep(1)
                 st.rerun()
 
@@ -149,7 +139,6 @@ if st.session_state.mode == "admin":
         else:
             st.info("Chưa có lượt nộp bài nào.")
 
-    # --- TAB 3: BÀI LÀM CHI TIẾT ---
     with tab3:
         st.subheader("Chi tiết bài làm từng học sinh")
         detail_files = [f for f in os.listdir(DETAILED_DIR) if f.endswith('.xlsx')]
@@ -166,20 +155,12 @@ if st.session_state.mode == "admin":
     st.stop()
 
 # ==============================================================================
-# PHẦN 2: TRANG ĐĂNG NHẬP DÀNH CHO THÍ SINH
+# PHẦN 2: TRANG ĐĂNG NHẬP THÍ SINH
 # ==============================================================================
 if "login" not in st.session_state:
     st.session_state.login = False
 
 if not st.session_state.login:
-    st.markdown("""
-        <style>
-        .stApp { background-color: #f0fdf4; font-family: "Times New Roman", Times, serif !important; }
-        label, p, span, input { font-family: "Times New Roman", Times, serif !important; font-size: 1.1rem !important; color: #1e3a8a !important; }
-        [data-testid="stVerticalBlockBorderWrapper"] { background-color: white !important; border-radius: 16px !important; padding: 20px !important; box-shadow: 0 10px 25px rgba(0,0,0,0.05) !important;}
-        </style>
-    """, unsafe_allow_html=True)
-
     col_top1, col_top2 = st.columns([8, 2])
     with col_top2:
         if st.button("⚙️ Cấu hình Giáo viên", key="btn_admin"):
@@ -187,17 +168,17 @@ if not st.session_state.login:
             st.rerun()
 
     st.markdown(f"""
-        <div style="text-align: center; margin-bottom: 20px;">
-            <div style="font-size: 1.2rem; color: #166534; font-weight: bold; text-transform: uppercase;">{config.get('school')}</div>
+        <div style="text-align: center; margin-bottom: 25px;">
+            <div style="font-size: 1.3rem; color: #166534; font-weight: bold; text-transform: uppercase;">{config.get('school')}</div>
             <div style="font-size: 2.2rem; color: #dc2626; font-weight: 900; margin-top: 5px;">{config.get('title')}</div>
-            <div style="font-size: 1.3rem; color: #1e3a8a; font-weight: bold;">Môn: {config.get('subject')} | Thời gian: {config.get('time')} phút</div>
+            <div style="font-size: 1.2rem; color: #1e3a8a; font-weight: bold;">Môn: {config.get('subject')} | Thời gian: {config.get('time')} phút</div>
         </div>
     """, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([0.15, 0.7, 0.15])
+    col1, col2, col3 = st.columns([0.2, 0.6, 0.2])
     with col2:
         with st.container(border=True):
-            st.markdown("<p style='text-align:center; color:#64748b;'>Vui lòng nhập thông tin để bắt đầu làm bài</p>", unsafe_allow_html=True)
+            st.markdown("<h4 style='text-align:center;'>ĐĂNG NHẬP THI TRỰC TUYẾN</h4>", unsafe_allow_html=True)
             name = st.text_input("👤 Họ và tên thí sinh:")
             lop = st.text_input("🏫 Lớp:")
             if st.button("🚀 BẮT ĐẦU LÀM BÀI", type="primary", use_container_width=True):
@@ -213,7 +194,7 @@ if not st.session_state.login:
     st.stop()
 
 # ==============================================================================
-# PHẦN 3: GIAO DIỆN VÀ XỬ LÝ BÀI THI CỦA THÍ SINH
+# PHẦN 3: GIAO DIỆN LÀM BÀI THI
 # ==============================================================================
 st_autorefresh(interval=1000, key="exam_timer")
 
@@ -230,22 +211,38 @@ timer_str = f"{phut:02d}:{giay:02d}"
 
 st.markdown("""
     <style>
-    * { font-family: "Times New Roman", Times, serif !important; }
-    .top-bar {
-        position: fixed; top: 0; left: 0; width: 100%; background-color: #f0fdf4;
-        border-bottom: 2px solid #86efac; z-index: 99999; padding: 10px 20px;
+    .part-header {
+        font-weight: bold;
+        color: #1e3a8a;
+        background-color: #e0f2fe;
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin-top: 10px;
+        margin-bottom: 5px;
     }
-    .stMain { padding-top: 90px !important; }
-    .timer-box { background-color: white; border: 2px solid #ef4444; color: #dc2626; border-radius: 8px; padding: 2px 12px; font-weight: bold; font-size: 1.5rem; }
     </style>
 """, unsafe_allow_html=True)
 
+# 1. BẢNG TIÊU ĐỀ HEADER HÀNG TRÊN CÙNG (Đã căn chỉnh đúng 3 vị trí)
 st.markdown(f"""
-    <div class="top-bar">
+    <div style="background-color: #f0fdf4; border: 2px solid #86efac; padding: 12px 20px; border-radius: 10px; margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div style="font-weight: bold; font-size: 1.1rem; color: #1e3a8a;">🥷 {st.session_state.name} | Lớp: {st.session_state.lop}</div>
-            <div style="font-weight: bold; font-size: 1.2rem; color: #dc2626;">{config.get('title')}</div>
-            <div class="timer-box">⏳ {timer_str}</div>
+            <!-- BÊN TRÁI: HỌ TÊN HỌC SINH, LỚP -->
+            <div style="text-align: left;">
+                <div style="font-weight: bold; font-size: 1.1rem; color: #1e3a8a;">👤 Họ và tên: {st.session_state.name}</div>
+                <div style="font-weight: bold; font-size: 1.0rem; color: #166534;">🏫 Lớp: {st.session_state.lop}</div>
+            </div>
+            <!-- Ở GIỮA: BÀI THI, MÔN THI -->
+            <div style="text-align: center;">
+                <div style="font-weight: 900; font-size: 1.3rem; color: #dc2626; text-transform: uppercase;">🏆 {config.get('title')}</div>
+                <div style="font-weight: bold; font-size: 1.0rem; color: #1e3a8a;">Môn thi: {config.get('subject')}</div>
+            </div>
+            <!-- BÊN PHẢI: ĐỒNG HỒ ĐẾM NGƯỢC -->
+            <div style="text-align: right;">
+                <div style="background-color: #fef2f2; border: 2px solid #ef4444; color: #dc2626; border-radius: 8px; padding: 6px 16px; font-weight: bold; font-size: 1.4rem; display: inline-block;">
+                    ⏳ {timer_str}
+                </div>
+            </div>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -327,12 +324,10 @@ def nop_bai():
     st.session_state.final_score = final_score
     st.session_state.da_nop_bai = True
 
-    # Lưu chi tiết bài thi ra Excel
     df_detail = pd.DataFrame(detailed_results)
     file_detail_path = os.path.join(DETAILED_DIR, f"{st.session_state.lop}_{st.session_state.name}.xlsx")
     df_detail.to_excel(file_detail_path, index=False)
 
-    # Lưu bảng điểm tổng hợp ra CSV
     row_data = {"Họ tên": st.session_state.name, "Lớp": st.session_state.lop, "Điểm": st.session_state.final_score, "Điểm thô": f"{raw_score}/{max_raw_score}", "Thời gian": datetime.now().strftime("%H:%M:%S %d/%m/%Y")}
     if os.path.exists(RESULT_FILE):
         df_res = pd.read_csv(RESULT_FILE)
@@ -360,20 +355,56 @@ else:
     curr_idx = st.session_state.current_q
     q = st.session_state.quiz_data[curr_idx]
     q_n = curr_idx + 1
+
+    def is_q_answered(q_index):
+        qn = q_index + 1
+        q_obj = st.session_state.quiz_data[q_index]
+        p = q_obj.get('Phần', 1)
+        if p == 1 or p == 3:
+            return bool(st.session_state.answers.get(str(qn)))
+        elif p == 2:
+            return any(bool(st.session_state.answers.get(f"{qn}_{sub}")) for sub in ['a','b','c','d'])
+        return False
+
+    # 2. PHÂN CHIA CÁC CÂU HỎI THEO PHẦN I, II, III
+    p1_indices = [i for i, item in enumerate(st.session_state.quiz_data) if item.get('Phần') == 1]
+    p2_indices = [i for i, item in enumerate(st.session_state.quiz_data) if item.get('Phần') == 2]
+    p3_indices = [i for i, item in enumerate(st.session_state.quiz_data) if item.get('Phần') == 3]
+
+    def render_nav_group(title, indices):
+        if not indices: return
+        st.markdown(f"<div class='part-header'>{title}</div>", unsafe_allow_html=True)
+        cols = st.columns(min(len(indices), 15))
+        for idx_col, idx_q in enumerate(indices):
+            qn_num = idx_q + 1
+            answered = is_q_answered(idx_q)
+            is_active = (curr_idx == idx_q)
+            
+            label = f"✓{qn_num}" if answered else f"{qn_num}"
+            
+            with cols[idx_col % 15]:
+                b_type = "primary" if is_active else "secondary"
+                if answered and not is_active:
+                    btn_clicked = st.button(f"🟢{qn_num}", key=f"qnav_{qn_num}", use_container_width=True)
+                else:
+                    btn_clicked = st.button(label, key=f"qnav_{qn_num}", type=b_type, use_container_width=True)
+
+                if btn_clicked:
+                    st.session_state.current_q = idx_q
+                    st.rerun()
+
+    render_nav_group("📌 PHẦN I: Trắc nghiệm 4 lựa chọn", p1_indices)
+    render_nav_group("📌 PHẦN II: Trắc nghiệm Đúng / Sai", p2_indices)
+    render_nav_group("📌 PHẦN III: Câu hỏi Trả lời ngắn", p3_indices)
+
+    st.divider()
+
+    # 3. HIỂN THỊ NỘI DUNG CÂU HỎI
     phan_hien_tai = q.get('Phần', 1)
-
-    # Thanh chọn nhanh câu hỏi
-    cols_nav = st.columns(total_qs)
-    for idx_btn in range(total_qs):
-        qn_btn = idx_btn + 1
-        has_ans = any(str(k).startswith(str(qn_btn)) for k in st.session_state.answers.keys())
-        btn_label = f"✓{qn_btn}" if has_ans else f"{qn_btn}"
-        with cols_nav[idx_btn]:
-            if st.button(btn_label, key=f"qnav_{qn_btn}", type="primary" if curr_idx == idx_btn else "secondary"):
-                st.session_state.current_q = idx_btn
-                st.rerun()
-
-    st.markdown(f"### 📍 CÂU HỎI {q_n} / {total_qs} (Phần {phan_hien_tai})")
+    ten_phan_map = {1: "PHẦN I (Trắc nghiệm 4 lựa chọn)", 2: "PHẦN II (Đúng / Sai)", 3: "PHẦN III (Trả lời ngắn)"}
+    
+    st.markdown(f"### 📍 CÂU HỎI {q_n} / {total_qs} — <span style='color:#1d4ed8;'>{ten_phan_map.get(phan_hien_tai)}</span>", unsafe_allow_html=True)
+    
     with st.container(border=True):
         st.markdown(f"#### {q.get('Câu hỏi', 'Nội dung câu hỏi...')}")
 
@@ -390,7 +421,7 @@ else:
             for s in ['a', 'b', 'c', 'd']:
                 k_sub = f"{q_n}_{s}"
                 txt_y = q.get(map_p2[s]) or q.get(f"{s}_text") or ""
-                col_txt, col_opt = st.columns([0.7, 0.3])
+                col_txt, col_opt = st.columns([0.75, 0.25])
                 with col_txt: st.markdown(f"<b>{s}.</b> {txt_y}", unsafe_allow_html=True)
                 with col_opt:
                     old_s = st.session_state.answers.get(k_sub)
